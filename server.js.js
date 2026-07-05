@@ -28,7 +28,7 @@ async function initializeDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        email TEXT UNIQUE NOT NULL NULL,
+        email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         stripe_customer_id TEXT,
         subscription_status TEXT DEFAULT 'inactive',
@@ -486,30 +486,185 @@ app.get('/api/download', requireSubscription, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Simple admin stats page
-app.get('/admin/stats', (req, res) => {
+// Admin stats page
+app.get('/admin/stats', async (req, res) => {
   if ((req.query.key || process.env.ADMIN_KEY) !== process.env.ADMIN_KEY) return res.status(404).send('Not Found');
-  (async () => {
-    try {
-      const signups = await pool.query('SELECT COUNT(*) as count FROM users ORDER BY created_at DESC LIMIT 1');
-      const html = `<!DOCTYPE html>
-<html><head><title>Frame to Form - Stats</title><style>
-body{font-family: Courier New;monospace;background:#1e1e1e;color:#e8e8e8;padding:40px;margin-top:20px}
-h1{color:#64b5f6;font-size:28px;}
-.stats-container{background:#2d2d2d;padding:20px;border-radius:8px;max-width:500px}
-th{text-align:left;padding:10px;border-bottom:1px solid #64b5f6;}
-td{padding:10px;border-bottom:1px solid #444;}
-</style></head><body>
-<h1>Frame to Form Stats</h1>
-<div class="stats-container">
-<p>Total Signups: <strong>${signups.rows[0].count}</strong></p>
-</div></body></html>`;
-      res.send(html);
-    } catch (e) {
-      console.error('Stats error:', e);
-      res.status(500).send('Error');
+  
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    
+    // Total signups
+    const signupsResult = await pool.query('SELECT COUNT(*) as count FROM users');
+    const totalSignups = signupsResult.rows[0].count;
+    
+    // Active subscriptions
+    const activeResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE subscription_status = $1', ['active']);
+    const activeSubscriptions = activeResult.rows[0].count;
+    
+    // Trial users (trial end in future)
+    const trialResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE trial_end > $1 AND subscription_status != $2', [now, 'active']);
+    const trialUsers = trialResult.rows[0].count;
+    
+    // Cancelled subscriptions
+    const cancelledResult = await pool.query('SELECT COUNT(*) as count FROM users WHERE subscription_status = $1', ['cancelled']);
+    const cancelledSubscriptions = cancelledResult.rows[0].count;
+    
+    // Recent signups (last 10)
+    const recentResult = await pool.query('SELECT email, created_at, subscription_status FROM users ORDER BY created_at DESC LIMIT 10');
+    const recentSignups = recentResult.rows;
+    
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Frame to Form - Admin Stats</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 40px 20px;
+      margin: 0;
     }
-  })();
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #64b5f6;
+      font-size: 32px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-label {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stat-value {
+      color: #64b5f6;
+      font-size: 36px;
+      font-weight: bold;
+    }
+    .recent-signups {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .recent-signups h2 {
+      color: #64b5f6;
+      margin-top: 0;
+      font-size: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .status-active {
+      color: #4ade80;
+    }
+    .status-trialing {
+      color: #fbbf24;
+    }
+    .status-inactive {
+      color: #ef4444;
+    }
+    .status-cancelled {
+      color: #94a3b8;
+    }
+    .date {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Frame to Form — Admin Dashboard</h1>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Signups</div>
+        <div class="stat-value">${totalSignups}</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">Active Subscriptions</div>
+        <div class="stat-value">${activeSubscriptions}</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">Trial Users</div>
+        <div class="stat-value">${trialUsers}</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-label">Cancelled</div>
+        <div class="stat-value">${cancelledSubscriptions}</div>
+      </div>
+    </div>
+    
+    <div class="recent-signups">
+      <h2>Recent Signups (Last 10)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Signed Up</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${recentSignups.map(user => `
+            <tr>
+              <td>${user.email}</td>
+              <td class="date">${new Date(user.created_at * 1000).toLocaleDateString()} ${new Date(user.created_at * 1000).toLocaleTimeString()}</td>
+              <td class="status-${user.subscription_status}">${user.subscription_status.charAt(0).toUpperCase() + user.subscription_status.slice(1)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>`;
+    
+    res.send(html);
+  } catch (err) {
+    console.error('Stats error:', err);
+    res.status(500).send('Error loading stats');
+  }
 });
 
 app.listen(PORT, () => {
