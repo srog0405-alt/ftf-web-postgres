@@ -385,12 +385,15 @@ app.post('/api/generate-image', requireSubscription, async (req, res) => {
     const r = await fetch('https://fal.run/fal-ai/flux-2-pro', {
       method: 'POST',
       headers: { 'Authorization': 'Key ' + falkey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt, image_size: imageSize, seed, enable_safety_checker: false })
+      body: JSON.stringify({ prompt: fullPrompt, image_size: { width: imageSize, height: imageSize }, seed })
     });
 
     if (!r.ok) {
-      const err = await r.json();
+      let err = {};
+      try { err = await r.json(); } catch (parseErr) {}
       let detail = err.message || err.detail || 'Flux API error';
+      if (Array.isArray(detail)) detail = detail.map(function(d) { return d.msg || JSON.stringify(d); }).join('; ');
+      else if (typeof detail === 'object') detail = JSON.stringify(detail);
       return res.status(r.status).json({ error: detail });
     }
 
