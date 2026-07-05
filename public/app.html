@@ -5,80 +5,495 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Frame to Form - App</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
-    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #334155; margin-bottom: 40px; }
-    .logo { font-size: 24px; font-weight: bold; color: #64b5f6; }
-    .nav-links { display: flex; gap: 20px; }
-    .nav-links a { color: #94a3b8; text-decoration: none; }
-    .logout-btn { background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 20px;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    /* NAV */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid #334155;
+      margin-bottom: 30px;
+    }
+    .logo { color: #64b5f6; font-size: 22px; font-weight: bold; text-decoration: none; }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .nav-right a { color: #94a3b8; text-decoration: none; }
+    .nav-right a:hover { color: #e2e8f0; }
+    .logout-btn {
+      background: #ef4444; color: white; border: none;
+      padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;
+    }
     .logout-btn:hover { background: #dc2626; }
-    h1 { color: #f1f5f9; margin-bottom: 30px; }
-    .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px; }
-    .step { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; }
-    .step h3 { color: #64b5f6; margin-bottom: 15px; }
-    .step p { color: #94a3b8; font-size: 14px; margin-bottom: 15px; }
-    .btn { padding: 10px 20px; background: #64b5f6; color: #0f172a; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .btn:hover { background: #3b82f6; }
-    .info { background: rgba(100, 181, 246, 0.1); border: 1px solid #64b5f6; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+
+    /* CARDS */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card h2 { color: #64b5f6; margin: 0 0 6px 0; font-size: 18px; }
+    .card .sub { color: #94a3b8; font-size: 14px; margin: 0 0 18px 0; }
+
+    /* STEP BADGES */
+    .step-badge {
+      display: inline-block;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #64b5f6;
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 3px 10px;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* INPUTS */
+    label { display: block; color: #94a3b8; font-size: 13px; margin-bottom: 6px; }
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus { outline: 2px solid #64b5f6; outline-offset: 0; }
+    textarea { resize: vertical; min-height: 80px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 220px; }
+    .field { margin-bottom: 16px; }
+
+    /* BUTTONS */
+    .btn {
+      background: #64b5f6; color: #0f172a; border: none;
+      padding: 10px 20px; border-radius: 6px; cursor: pointer;
+      font-size: 14px; font-weight: 600;
+    }
+    .btn:hover { background: #90caf9; }
+    .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent; color: #64b5f6;
+      border: 1px solid #64b5f6;
+    }
+    .btn-secondary:hover { background: rgba(100, 181, 246, 0.1); }
+    .btn-secondary:disabled { border-color: #334155; color: #64748b; background: transparent; }
+
+    /* GALLERY */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .gallery .tile {
+      position: relative;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #0f172a;
+      aspect-ratio: 1;
+    }
+    .gallery .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery .tile.selected { border-color: #64b5f6; box-shadow: 0 0 0 2px rgba(100,181,246,0.35); }
+    .gallery .tile .tick {
+      position: absolute; top: 8px; right: 8px;
+      background: #64b5f6; color: #0f172a;
+      width: 24px; height: 24px; border-radius: 50%;
+      display: none; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 14px;
+    }
+    .gallery .tile.selected .tick { display: flex; }
+    .gallery .tile.loading {
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b; font-size: 13px;
+    }
+
+    /* PREVIEW */
+    .preview-wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
+    .preview-box {
+      background: repeating-conic-gradient(#1e293b 0% 25%, #263449 0% 50%) 50% / 24px 24px;
+      border: 1px solid #334155; border-radius: 8px;
+      max-width: 320px; overflow: hidden;
+    }
+    .preview-box img { display: block; width: 100%; height: auto; }
+
+    /* STATUS */
+    .status { font-size: 14px; margin-top: 12px; color: #94a3b8; }
+    .status.error { color: #ef4444; }
+    .status.ok { color: #4ade80; }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid #334155; border-top-color: #64b5f6;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: -2px; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+
+    .divider { border: none; border-top: 1px solid #334155; margin: 20px 0; }
+    .hidden { display: none; }
+    .keys-saved { color: #4ade80; font-size: 13px; margin-left: 10px; }
+    .upload-note { color: #64748b; font-size: 13px; margin-top: 8px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <div class="logo">📐 Frame to Form</div>
-      <div class="nav-links">
+    <nav>
+      <a href="/app" class="logo">&#9698; Frame to Form</a>
+      <div class="nav-right">
         <a href="/account">Account</a>
-        <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        <button class="logout-btn" onclick="logout()">Logout</button>
       </div>
-    </header>
+    </nav>
 
-    <h1>Welcome to Frame to Form</h1>
-
-    <div class="info">
-      <h3>🎯 Getting Started</h3>
-      <p>Frame to Form uses a 3-step pipeline to convert your images into 3D assets:</p>
-      <ol style="margin-top: 10px; margin-left: 20px; color: #94a3b8;">
-        <li><strong>Generate or Upload:</strong> Create an image with AI or upload your own</li>
-        <li><strong>Remove Background:</strong> Clean up the image automatically</li>
-        <li><strong>Convert to 3D:</strong> Transform into a production-ready GLB file</li>
-      </ol>
+    <!-- API KEYS -->
+    <div class="card">
+      <h2>&#128273; Your API Keys</h2>
+      <p class="sub">Frame to Form runs on your own keys. They are stored only in this browser and sent only with your requests.</p>
+      <div class="row">
+        <div class="field">
+          <label for="falKey">fal.ai key (image generation + 3D conversion)</label>
+          <input type="password" id="falKey" placeholder="key_id:key_secret" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="rbgKey">Remove.bg key (background removal)</label>
+          <input type="password" id="rbgKey" placeholder="Your Remove.bg API key" autocomplete="off">
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="saveKeys()">Save keys</button>
+      <span id="keysSaved" class="keys-saved hidden">Saved &#10003;</span>
     </div>
 
-    <div class="pipeline">
-      <div class="step">
-        <h3>1. Generate Image</h3>
-        <p>Use AI to generate images from text descriptions, or upload your own reference photos.</p>
-        <button class="btn" onclick="alert('Full app coming soon!')">Start</button>
+    <!-- STEP 1: GENERATE -->
+    <div class="card">
+      <span class="step-badge">Step 1</span>
+      <h2>Generate or upload an image</h2>
+      <p class="sub">Describe the asset you need, or upload a reference photo of your own.</p>
+
+      <div class="field">
+        <label for="prompt">Describe your asset</label>
+        <textarea id="prompt" placeholder="e.g. Victorian street lamp, cast iron, weathered green paint, studio lighting, plain background"></textarea>
       </div>
-      <div class="step">
-        <h3>2. Remove Background</h3>
-        <p>Automatically remove backgrounds with pixel-perfect precision.</p>
-        <button class="btn" onclick="alert('Full app coming soon!')">Process</button>
+
+      <div class="row">
+        <div class="field">
+          <label for="subjectType">Subject type</label>
+          <select id="subjectType">
+            <option value="object">Object / prop</option>
+            <option value="people">Person / figure</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="numImages">Variations to generate</label>
+          <select id="numImages">
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+          </select>
+        </div>
       </div>
-      <div class="step">
-        <h3>3. Convert to 3D</h3>
-        <p>Transform your images into production-ready 3D models (GLB format).</p>
-        <button class="btn" onclick="alert('Full app coming soon!')">Convert</button>
+
+      <button class="btn" id="generateBtn" onclick="generateImages()">Generate images</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('uploadInput').click()">Upload your own</button>
+      <input type="file" id="uploadInput" accept="image/*" class="hidden" onchange="handleUpload(event)">
+      <div class="status" id="genStatus"></div>
+
+      <!-- STEP 2: GALLERY -->
+      <div id="gallerySection" class="hidden">
+        <hr class="divider">
+        <span class="step-badge">Step 2</span>
+        <h2>Review and pick one</h2>
+        <p class="sub">Click the image you want to take through to 3D.</p>
+        <div class="gallery" id="gallery"></div>
       </div>
     </div>
 
-    <div style="text-align: center; color: #94a3b8; margin-top: 40px;">
-      <p>Full app interface coming soon. For now, manage your account and subscription in the Account section.</p>
+    <!-- STEP 3: REMOVE BACKGROUND -->
+    <div class="card hidden" id="bgCard">
+      <span class="step-badge">Step 3 &middot; optional</span>
+      <h2>Remove background</h2>
+      <p class="sub">A clean cut-out gives the 3D conversion a much better result. You can skip this if your image already has a plain background.</p>
+      <div class="preview-wrap">
+        <div class="preview-box"><img id="bgPreview" alt="Selected image"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn" id="removeBgBtn" onclick="removeBackground()">Remove background</button>
+        <button class="btn btn-secondary" onclick="skipBg()">Skip this step</button>
+      </div>
+      <div class="status" id="bgStatus"></div>
+    </div>
+
+    <!-- STEP 4: CONVERT TO 3D -->
+    <div class="card hidden" id="convertCard">
+      <span class="step-badge">Step 4</span>
+      <h2>Convert to 3D</h2>
+      <p class="sub">Sends your image to Trellis-2 and returns a production-ready GLB file. This usually takes 1&ndash;3 minutes.</p>
+      <div class="preview-wrap">
+        <div class="preview-box"><img id="convertPreview" alt="Image to convert"></div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn" id="convertBtn" onclick="convertTo3D()">Convert to 3D</button>
+      </div>
+      <div class="status" id="convertStatus"></div>
+      <div id="downloadSection" class="hidden" style="margin-top:16px;">
+        <button class="btn" onclick="downloadGLB()">&#11015; Download GLB</button>
+      </div>
     </div>
   </div>
 
   <script>
-    function handleLogout() {
+    // ---------- STATE ----------
+    var selectedImageUrl = null;    // URL of chosen generated image (fal CDN)
+    var selectedImageBase64 = null; // base64 data URL (uploads / bg-removed)
+    var glbUrl = null;
+
+    // ---------- KEYS ----------
+    function loadKeys() {
+      document.getElementById('falKey').value = localStorage.getItem('ftf_fal_key') || '';
+      document.getElementById('rbgKey').value = localStorage.getItem('ftf_rbg_key') || '';
+    }
+    function saveKeys() {
+      localStorage.setItem('ftf_fal_key', document.getElementById('falKey').value.trim());
+      localStorage.setItem('ftf_rbg_key', document.getElementById('rbgKey').value.trim());
+      var badge = document.getElementById('keysSaved');
+      badge.classList.remove('hidden');
+      setTimeout(function() { badge.classList.add('hidden'); }, 2000);
+    }
+    function falKey() { return document.getElementById('falKey').value.trim(); }
+    function rbgKey() { return document.getElementById('rbgKey').value.trim(); }
+    loadKeys();
+
+    // ---------- HELPERS ----------
+    function setStatus(id, msg, kind) {
+      var el = document.getElementById(id);
+      el.className = 'status' + (kind ? ' ' + kind : '');
+      el.innerHTML = msg;
+    }
+    function busy(id, msg) { setStatus(id, '<span class="spinner"></span>' + msg); }
+
+    // ---------- LOGOUT ----------
+    function logout() {
       fetch('/api/logout', { method: 'POST' })
-        .then(() => {
-          window.location.href = '/login';
-        })
-        .catch(err => {
-          console.error('Logout error:', err);
-          window.location.href = '/login';
+        .then(function() { window.location.href = '/login'; })
+        .catch(function() { window.location.href = '/login'; });
+    }
+
+    // ---------- STEP 1: GENERATE ----------
+    function generateImages() {
+      var prompt = document.getElementById('prompt').value.trim();
+      if (!falKey()) { setStatus('genStatus', 'Add your fal.ai key at the top of the page first.', 'error'); return; }
+      if (!prompt) { setStatus('genStatus', 'Type a description of the asset you want.', 'error'); return; }
+
+      var count = parseInt(document.getElementById('numImages').value, 10);
+      var subjectType = document.getElementById('subjectType').value;
+      var gallery = document.getElementById('gallery');
+      gallery.innerHTML = '';
+      document.getElementById('gallerySection').classList.remove('hidden');
+      document.getElementById('generateBtn').disabled = true;
+      busy('genStatus', 'Generating ' + count + ' variations&hellip;');
+
+      var done = 0, failed = 0;
+
+      for (var i = 0; i < count; i++) {
+        (function(index) {
+          var tile = document.createElement('div');
+          tile.className = 'tile loading';
+          tile.textContent = 'Generating ' + (index + 1) + '&hellip;';
+          tile.innerHTML = 'Generating ' + (index + 1) + '&hellip;';
+          gallery.appendChild(tile);
+
+          fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-fal-key': falKey() },
+            body: JSON.stringify({ prompt: prompt, index: index, subjectType: subjectType })
+          })
+          .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+          .then(function(res) {
+            if (!res.ok || !res.data.image_url) throw new Error(res.data.error || 'Generation failed');
+            tile.className = 'tile';
+            tile.innerHTML = '<img src="' + res.data.image_url + '" alt="Variation ' + (index + 1) + '"><div class="tick">&#10003;</div>';
+            tile.onclick = function() { selectImage(tile, res.data.image_url, null); };
+          })
+          .catch(function(err) {
+            failed++;
+            tile.className = 'tile loading';
+            tile.innerHTML = 'Failed: ' + err.message;
+          })
+          .then(function() {
+            done++;
+            if (done === count) {
+              document.getElementById('generateBtn').disabled = false;
+              if (failed === count) setStatus('genStatus', 'All generations failed. Check your fal.ai key and try again.', 'error');
+              else if (failed > 0) setStatus('genStatus', (count - failed) + ' of ' + count + ' generated. Click one to continue.', 'ok');
+              else setStatus('genStatus', 'Done. Click the image you want to continue with.', 'ok');
+            }
+          });
+        })(i);
+      }
+    }
+
+    // ---------- STEP 1b: UPLOAD ----------
+    function handleUpload(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function() {
+        var gallery = document.getElementById('gallery');
+        document.getElementById('gallerySection').classList.remove('hidden');
+        var tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.innerHTML = '<img src="' + reader.result + '" alt="Uploaded image"><div class="tick">&#10003;</div>';
+        tile.onclick = function() { selectImage(tile, null, reader.result); };
+        gallery.appendChild(tile);
+        setStatus('genStatus', 'Image uploaded. Click it to continue.', 'ok');
+        tile.click();
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    }
+
+    // ---------- STEP 2: SELECT ----------
+    function selectImage(tile, url, base64) {
+      var tiles = document.querySelectorAll('.gallery .tile');
+      for (var i = 0; i < tiles.length; i++) tiles[i].classList.remove('selected');
+      tile.classList.add('selected');
+
+      selectedImageUrl = url;
+      selectedImageBase64 = base64;
+      glbUrl = null;
+      document.getElementById('downloadSection').classList.add('hidden');
+      setStatus('convertStatus', '');
+      setStatus('bgStatus', '');
+
+      var src = base64 || url;
+      document.getElementById('bgPreview').src = src;
+      document.getElementById('convertPreview').src = src;
+      document.getElementById('bgCard').classList.remove('hidden');
+      document.getElementById('convertCard').classList.remove('hidden');
+      document.getElementById('bgCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ---------- STEP 3: REMOVE BACKGROUND ----------
+    function skipBg() {
+      document.getElementById('convertCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function removeBackground() {
+      if (!rbgKey()) { setStatus('bgStatus', 'Add your Remove.bg key at the top of the page first.', 'error'); return; }
+      document.getElementById('removeBgBtn').disabled = true;
+      busy('bgStatus', 'Removing background&hellip;');
+
+      var getBlob;
+      if (selectedImageBase64) {
+        getBlob = fetch(selectedImageBase64).then(function(r) { return r.blob(); });
+      } else {
+        getBlob = fetch(selectedImageUrl).then(function(r) {
+          if (!r.ok) throw new Error('Could not fetch the image');
+          return r.blob();
         });
+      }
+
+      getBlob
+        .then(function(blob) {
+          var fd = new FormData();
+          fd.append('image', blob, 'image.png');
+          return fetch('/api/remove-bg', { method: 'POST', headers: { 'x-removebg-key': rbgKey() }, body: fd });
+        })
+        .then(function(r) {
+          if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'Remove.bg failed'); });
+          return r.blob();
+        })
+        .then(function(blob) {
+          var reader = new FileReader();
+          reader.onload = function() {
+            selectedImageBase64 = reader.result;
+            selectedImageUrl = null; // the cut-out replaces the original
+            document.getElementById('bgPreview').src = reader.result;
+            document.getElementById('convertPreview').src = reader.result;
+            setStatus('bgStatus', 'Background removed. Continue to 3D conversion below.', 'ok');
+            document.getElementById('removeBgBtn').disabled = false;
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(function(err) {
+          setStatus('bgStatus', err.message, 'error');
+          document.getElementById('removeBgBtn').disabled = false;
+        });
+    }
+
+    // ---------- STEP 4: CONVERT TO 3D ----------
+    function convertTo3D() {
+      if (!falKey()) { setStatus('convertStatus', 'Add your fal.ai key at the top of the page first.', 'error'); return; }
+      if (!selectedImageUrl && !selectedImageBase64) { setStatus('convertStatus', 'Pick an image first.', 'error'); return; }
+
+      document.getElementById('convertBtn').disabled = true;
+      document.getElementById('downloadSection').classList.add('hidden');
+      busy('convertStatus', 'Submitting to Trellis-2&hellip;');
+
+      var body = selectedImageBase64 ? { image_base64: selectedImageBase64 } : { image_url: selectedImageUrl };
+
+      fetch('/api/trellis/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-fal-key': falKey() },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
+        if (!res.ok || !res.data.task_id) throw new Error(res.data.error || 'Could not start conversion');
+        busy('convertStatus', 'Converting&hellip; this usually takes 1&ndash;3 minutes.');
+        pollTrellis(res.data.task_id, 0);
+      })
+      .catch(function(err) {
+        setStatus('convertStatus', err.message, 'error');
+        document.getElementById('convertBtn').disabled = false;
+      });
+    }
+
+    function pollTrellis(taskId, attempts) {
+      if (attempts > 120) { // ~10 minutes at 5s intervals
+        setStatus('convertStatus', 'Timed out waiting for the conversion. Try again.', 'error');
+        document.getElementById('convertBtn').disabled = false;
+        return;
+      }
+      setTimeout(function() {
+        fetch('/api/trellis/status/' + taskId, { headers: { 'x-fal-key': falKey() } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.status === 'FINISHED' && data.result_url) {
+              glbUrl = data.result_url;
+              setStatus('convertStatus', 'Conversion complete.', 'ok');
+              document.getElementById('downloadSection').classList.remove('hidden');
+              document.getElementById('convertBtn').disabled = false;
+            } else if (data.status === 'FAILED') {
+              setStatus('convertStatus', 'Conversion failed: ' + (data.error || 'unknown error'), 'error');
+              document.getElementById('convertBtn').disabled = false;
+            } else {
+              pollTrellis(taskId, attempts + 1);
+            }
+          })
+          .catch(function() { pollTrellis(taskId, attempts + 1); });
+      }, 5000);
+    }
+
+    function downloadGLB() {
+      if (!glbUrl) return;
+      var filename = 'frame-to-form-' + Date.now() + '.glb';
+      window.location.href = '/api/download?url=' + encodeURIComponent(glbUrl) + '&filename=' + encodeURIComponent(filename);
     }
   </script>
 </body>
