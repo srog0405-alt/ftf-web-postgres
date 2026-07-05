@@ -474,7 +474,7 @@ app.get('/api/trellis/status/:taskId', requireSubscription, async (req, res) => 
       const result = await fetch('https://queue.fal.run/fal-ai/trellis-2/requests/' + taskId, {
         headers: { 'Authorization': 'Key ' + falkey }
       });
-      const resultData = await result.json();
+      const resultData = await result.json(); console.log('Trellis result reply:', JSON.stringify(resultData));
       const url = resultData.model_mesh?.url || resultData.output?.model_mesh?.url || resultData.model_glb_url || resultData.output?.model_glb_url || resultData.data?.model_glb_url;
       return res.json({ status: 'FINISHED', result_url: url });
     }
@@ -682,4 +682,5 @@ app.get('/admin/stats', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n FRAME TO FORM | Running | http://localhost:${PORT} \n`);
 });
+
 
