@@ -16,6 +16,9 @@ const PORT = process.env.PORT || 3000;
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Trust Railway's proxy so req.protocol reports https correctly
+app.set('trust proxy', 1);
+
 // POSTGRES DATABASE CONNECTION
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -67,7 +70,7 @@ app.use(session({
   cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 }
 }));
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { filesize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // AUTH MIDDLEWARE
 function requireAuth(req, res, next) {
@@ -259,13 +262,15 @@ app.post('/api/create-checkout', requireAuth, async (req, res) => {
     const user = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.userId]);
     if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
 
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
     const session = await stripe.checkout.sessions.create({
       customer: user.rows[0].stripe_customer_id,
       payment_method_types: ['card'],
       line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
       mode: 'subscription',
-      success_url: `${req.get('host')}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.get('host')}/subscribe`,
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/subscribe`,
       subscription_data: {
         trial_period_days: 14
       }
@@ -294,13 +299,14 @@ app.get('/api/user', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
+
 app.post('/api/customer-portal', requireAuth, async (req, res) => {
   try {
     const user = await pool.query('SELECT stripe_customer_id FROM users WHERE id = $1', [req.session.userId]);
     if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: user.rows[0].stripe_customer_id,
-      return_url: `${req.get('host')}/account`
+      return_url: `${req.protocol}://${req.get('host')}/account`
     });
     res.json({ url: portalSession.url });
   } catch (err) {
@@ -370,7 +376,7 @@ app.post('/api/generate-image', requireSubscription, async (req, res) => {
     const { prompt, index, subjectType } = req.body;
     const seeds = [42, 154, 286, 512, 999, 1337, 2048, 7777, 33337, 65535];
     const fullPrompt = subjectType === 'people'
-      ? prompt + '. full body shot, entire figure visible head to toe, legs and feet fully visible, standing on ground, do crop, wide shot'
+      ? prompt + '. full body shot, entire figure visible head to toe, legs and feet fully visible, standing on ground, no crop, wide shot'
       : prompt;
     const imageSizes = [832, 896];
     const seed = seeds[index % seeds.length];
@@ -390,11 +396,12 @@ app.post('/api/generate-image', requireSubscription, async (req, res) => {
 
     const data = await r.json();
     if (!data.images || data.images[0] === undefined) {
-      if (data.detail && data.detail.map) {
+      let detail = 'No image returned from Flux';
+      if (data.detail) {
         detail = Array.isArray(data.detail) ? data.detail.map(d => d.msg).join(', ') : data.detail;
       }
       console.error('Flux API error [' + r.status + ']:', JSON.stringify(data));
-      return res.status(r.status).json({ error: 'Flux ' + r.status + ' - ' + detail });
+      return res.status(500).json({ error: 'Flux - ' + detail });
     }
 
     const imageUrl = data.images[0].url;
@@ -416,7 +423,6 @@ app.post('/api/trellis/submit', requireSubscription, async (req, res) => {
     if (!finalUrl) {
       const imageBase64 = image_base64.match(/data:[^;]*;base64,(.+)/)?.[1];
       const buffer = Buffer.from(imageBase64, 'base64');
-      const base64str = buffer.toString('base64');
       const filename = 'figure_' + Date.now() + '.png';
       const initData = await fetch('https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', {
         method: 'POST',
