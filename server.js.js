@@ -284,13 +284,16 @@ app.get('/api/user', requireAuth, async (req, res) => {
     if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const now = Math.floor(Date.now() / 1000);
     const daysLeft = user.rows[0].trial_end ? Math.ceil((user.rows[0].trial_end - now) / 86400) : 0;
-    res.json({ ...user.rows[0], user, trial_days_left: daysLeft });
+    res.json({
+      subscription_status: user.rows[0].subscription_status,
+      trial_end: user.rows[0].trial_end,
+      trial_days_left: daysLeft
+    });
   } catch (err) {
     console.error('User fetch error:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
-
 app.post('/api/customer-portal', requireAuth, async (req, res) => {
   try {
     const user = await pool.query('SELECT stripe_customer_id FROM users WHERE id = $1', [req.session.userId]);
