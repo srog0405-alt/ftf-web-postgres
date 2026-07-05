@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscription Confirmed - Frame to Form</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .container { background: #1e293b; padding: 60px 40px; border-radius: 8px; border: 1px solid #334155; width: 100%; max-width: 500px; text-align: center; }
+    .checkmark { font-size: 80px; color: #4ade80; margin-bottom: 20px; }
+    h1 { color: #f1f5f9; margin-bottom: 15px; font-size: 32px; }
+    p { color: #94a3b8; margin-bottom: 10px; line-height: 1.6; }
+    .details { background: #0f172a; padding: 20px; border-radius: 6px; margin: 30px 0; text-align: left; }
+    .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #334155; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: #94a3b8; }
+    .detail-value { color: #f1f5f9; font-weight: bold; }
+    .btn { display: inline-block; padding: 12px 40px; background: #64b5f6; color: #0f172a; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+    .btn:hover { background: #3b82f6; }
+    .secondary-btn { background: transparent; color: #64b5f6; border: 1px solid #64b5f6; margin-left: 10px; }
+    .secondary-btn:hover { background: rgba(100, 181, 246, 0.1); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="checkmark">✓</div>
+    <h1>Welcome to Frame to Form!</h1>
+    <p>Your subscription has been confirmed and is now active.</p>
+
+    <div class="details">
+      <div class="detail-row">
+        <div class="detail-label">Plan</div>
+        <div class="detail-value">Professional</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Billing</div>
+        <div class="detail-value">$29/month</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Status</div>
+        <div class="detail-value" style="color: #4ade80;">Active</div>
+      </div>
+    </div>
+
+    <p>You now have full access to Frame to Form. Start creating 3D assets right away!</p>
+
+    <div>
+      <a href="/app" class="btn">Go to App</a>
+      <a href="/account" class="btn secondary-btn">Account Settings</a>
+    </div>
+  </div>
+</body>
+</html>
