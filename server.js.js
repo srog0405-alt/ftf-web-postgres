@@ -9,10 +9,12 @@ const Stripe = require('stripe');
 const bcryptjs = require('bcryptjs');
 const { Pool } = require('pg');
 const path = require('path');
+const { Resend } = require('resend');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // POSTGRES DATABASE CONNECTION
 const pool = new Pool({
@@ -35,7 +37,18 @@ async function initializeDatabase() {
         created_at INTEGER DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER
       )
     `);
-    console.log('Users table initialized');
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        token TEXT UNIQUE NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER DEFAULT EXTRACT(EPOCH FROM NOW())::INTEGER
+      )
+    `);
+
+    console.log('Database tables initialized');
   } catch (err) {
     console.error('Error initializing database:', err);
   }
@@ -75,37 +88,38 @@ function requireSubscription(req, res, next) {
 }
 
 // PAGES
-// Landing page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Login page
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Signup page
 app.get('/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'signup.html'));
 });
 
-// Subscribe page
+app.get('/forgot-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
+});
+
 app.get('/subscribe', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'subscribe.html'));
 });
 
-// Main app - requires active subscription
 app.get('/app', requireSubscription, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
-// Account page
 app.get('/account', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'account.html'));
 });
 
-// Success page after payment
 app.get('/success', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
@@ -121,10 +135,8 @@ app.post('/auth/signup', async (req, res) => {
 
     const hashed = await bcryptjs.hash(password, 10);
 
-    // Create stripe customer
     const customer = await stripe.customers.create({ email: email.toLowerCase() });
 
-    // Create 14-day trial subscription
     const trialEnd = Math.floor(Date.now() / 1000) + (14 * 24 * 60 * 60);
 
     const result = await pool.query(
@@ -159,6 +171,79 @@ app.post('/api/login', async (req, res) => {
     res.json({ success: true, redirect: '/app' });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+// PASSWORD RESET ROUTES
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  try {
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    
+    if (user.rows.length === 0) {
+      return res.json({ success: true, message: 'If an account exists, a reset link has been sent' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Math.floor(Date.now() / 1000) + (60 * 60);
+
+    await pool.query(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [user.rows[0].id, token, expiresAt]
+    );
+
+    const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+    
+    await resend.emails.send({
+      from: 'noreply@frame-to-form.com',
+      to: email.toLowerCase(),
+      subject: 'Reset your Frame to Form password',
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+        <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
+        <p>Or copy this link: ${resetLink}</p>
+        <p>If you didn't request this, you can ignore this email.</p>
+      `
+    });
+
+    res.json({ success: true, message: 'If an account exists, a reset link has been sent' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token and password required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    
+    const resetToken = await pool.query(
+      'SELECT * FROM password_reset_tokens WHERE token = $1 AND expires_at > $2',
+      [token, now]
+    );
+
+    if (resetToken.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    const userId = resetToken.rows[0].user_id;
+    const hashed = await bcryptjs.hash(password, 10);
+
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, userId]);
+
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+
+    res.json({ success: true, message: 'Password reset successfully', redirect: '/login' });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
@@ -291,7 +376,7 @@ app.post('/api/generate-image', requireSubscription, async (req, res) => {
     const r = await fetch('https://fal.run/fal-ai/flux-2-pro', {
       method: 'POST',
       headers: { 'Authorization': 'Key ' + falkey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt, image_size, seed, enable_safety_checker: false })
+      body: JSON.stringify({ prompt: fullPrompt, image_size: imageSize, seed, enable_safety_checker: false })
     });
 
     if (!r.ok) {
@@ -323,7 +408,7 @@ app.post('/api/trellis/submit', requireSubscription, async (req, res) => {
     const { image_url, image_base64 } = req.body;
     if (!image_url && !image_base64) return res.status(400).json({ error: 'No image provided' });
 
-    let finalUrl = imageUrl;
+    let finalUrl = image_url;
 
     if (!finalUrl) {
       const imageBase64 = image_base64.match(/data:[^;]*;base64,(.+)/)?.[1];
@@ -349,9 +434,12 @@ app.post('/api/trellis/submit', requireSubscription, async (req, res) => {
       headers: { 'Authorization': 'Key ' + falkey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_url: finalUrl })
     });
-    if (!submit.ok) return res.status(submit.status).json({ error: data.message || data.detail || 'Trellis error' });
+    if (!submit.ok) {
+      const data = await submit.json();
+      return res.status(submit.status).json({ error: data.message || data.detail || 'Trellis error' });
+    }
     const requestData = await submit.json();
-    const requestId = data.request_id;
+    const requestId = requestData.request_id;
     if (!requestId) return res.status(500).json({ error: 'No request_id from Trellis' });
     res.json({ task_id: requestId });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -367,10 +455,10 @@ app.get('/api/trellis/status/:taskId', requireSubscription, async (req, res) => 
     const status = await fetch('https://queue.fal.run/fal-ai/trellis-2/requests/' + taskId + '/status', {
       headers: { 'Authorization': 'Key ' + falkey }
     });
-    const statusData = await statusData.json();
+    const statusData = await status.json();
     const statusValue = statusData.state || '';
 
-    if (status === 'COMPLETED') {
+    if (statusValue === 'COMPLETED') {
       const result = await fetch('https://queue.fal.run/fal-ai/trellis-2/requests/' + taskId, {
         headers: { 'Authorization': 'Key ' + falkey }
       });
@@ -378,7 +466,7 @@ app.get('/api/trellis/status/:taskId', requireSubscription, async (req, res) => 
       const url = resultData.model_glb_url || resultData.output?.model_glb_url || resultData.data?.model_glb_url;
       return res.json({ status: 'FINISHED', result_url: url });
     }
-    if (status === 'FAILED' || status === 'ERROR') return res.json({ status: 'FAILED', error: statusData.error || 'Failed' });
+    if (statusValue === 'FAILED' || statusValue === 'ERROR') return res.json({ status: 'FAILED', error: statusData.error || 'Failed' });
     res.json({ status: 'PROCESSING' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -398,10 +486,9 @@ app.get('/api/download', requireSubscription, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Simple admin stats page - view at /admin/stats?key=ADMIN_KEY
+// Simple admin stats page
 app.get('/admin/stats', (req, res) => {
   if ((req.query.key || process.env.ADMIN_KEY) !== process.env.ADMIN_KEY) return res.status(404).send('Not Found');
-  const key = req.query.key || process.env.ADMIN_KEY;
   (async () => {
     try {
       const signups = await pool.query('SELECT COUNT(*) as count FROM users ORDER BY created_at DESC LIMIT 1');
@@ -416,9 +503,7 @@ td{padding:10px;border-bottom:1px solid #444;}
 <h1>Frame to Form Stats</h1>
 <div class="stats-container">
 <p>Total Signups: <strong>${signups.rows[0].count}</strong></p>
-<p><tr><th>Total Signups</th><th>Total Active</th></tr></p>
-${signups.rows.map(u => `<tr><td>${u.email}</td><td>${u.subscription_status}</td><td>${new Date(u.created_at * 1000).toLocaleString()}</td></tr>`).join('')}
-</table></div></body></html>`;
+</div></body></html>`;
       res.send(html);
     } catch (e) {
       console.error('Stats error:', e);
