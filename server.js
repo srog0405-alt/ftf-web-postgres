@@ -467,7 +467,7 @@ app.get('/api/trellis/status/:taskId', requireSubscription, async (req, res) => 
     const status = await fetch('https://queue.fal.run/fal-ai/trellis-2/requests/' + taskId + '/status', {
       headers: { 'Authorization': 'Key ' + falkey }
     });
-    const statusData = await status.json();
+    const statusData = await status.json(); console.log('Trellis status reply:', JSON.stringify(statusData));
     const statusValue = statusData.status || statusData.state || '';
 
     if (statusValue === 'COMPLETED') {
@@ -682,3 +682,4 @@ app.get('/admin/stats', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n FRAME TO FORM | Running | http://localhost:${PORT} \n`);
 });
+
